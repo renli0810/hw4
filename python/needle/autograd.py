@@ -1,4 +1,5 @@
 """Core data structures."""
+
 import needle
 from .backend_numpy import Device, cpu, all_devices
 from typing import List, Optional, NamedTuple, Tuple, Union
@@ -15,9 +16,11 @@ TENSOR_COUNTER = 0
 # as the backend for our computations, this line will change in later homeworks
 
 import numpy as array_api
+
 NDArray = numpy.ndarray
 
 from .backend_selection import array_api, NDArray, default_device
+
 
 class Op:
     """Operator definition."""
@@ -248,9 +251,9 @@ class Tensor(Value):
         tensor._init(
             None,
             [],
-            cached_data=data
-            if not isinstance(data, Tensor)
-            else data.realize_cached_data(),
+            cached_data=(
+                data if not isinstance(data, Tensor) else data.realize_cached_data()
+            ),
             requires_grad=requires_grad,
         )
         return tensor
@@ -359,11 +362,9 @@ class Tensor(Value):
     def transpose(self, axes=None):
         return needle.ops.Transpose(axes)(self)
 
-
-
-
     __radd__ = __add__
     __rmul__ = __mul__
+
 
 def compute_gradient_of_variables(output_tensor, out_grad):
     """Take gradient of output node with respect to each node in node_list.
@@ -381,7 +382,18 @@ def compute_gradient_of_variables(output_tensor, out_grad):
     reverse_topo_order = list(reversed(find_topo_sort([output_tensor])))
 
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    for node in reverse_topo_order:
+        node.grad = sum_node_list(node_to_output_grads_list[node])
+        if node.is_leaf():
+            continue
+        grad = node.op.gradient(node.grad, node)
+        if isinstance(grad, Value):
+            grad = [grad]
+        for i, input in enumerate(node.inputs):
+            if input not in node_to_output_grads_list:
+                node_to_output_grads_list[input] = []
+            node_to_output_grads_list[input].append(grad[i])
+
     ### END YOUR SOLUTION
 
 
@@ -394,14 +406,26 @@ def find_topo_sort(node_list: List[Value]) -> List[Value]:
     sort.
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    visit = set()
+    res_list = []
+    for node in node_list:
+        if node not in visit:
+            topo_sort_dfs(node, visit, res_list)
+    return res_list
     ### END YOUR SOLUTION
 
 
 def topo_sort_dfs(node, visited, topo_order):
     """Post-order DFS"""
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    for input in node.inputs:
+        if input not in visited:
+            topo_sort_dfs(input, visited, topo_order)
+
+    if node not in visited:
+        visited.add(node)
+        topo_order.append(node)
+
     ### END YOUR SOLUTION
 
 
